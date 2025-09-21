@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Masjid As-Siddiq - Madrasa Attendance (Offline)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .table-container { overflow-x: auto; }
+    .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); padding: 1rem; }
+    .modal.show { display: flex; align-items: center; justify-content: center; }
+    .attendance-select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none; padding: 0.5rem; width: 100%; min-width: 110px; text-align: center; border-radius: 0.375rem; border: 1px solid transparent; color: white; }
+    .status-present { background-color: #166534; }
+    .status-excused { background-color: #1d4ed8; }
+    .status-unexcused { background-color: #b91c1c; }
+    .status-none { background-color: #4b5563; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+<div id="app-container" class="container mx-auto p-4 md:p-8 max-w-7xl">
+  <header class="text-center mb-8">
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-100">Masjid As-Siddiq</h1>
+    <p class="text-lg md:text-xl text-green-400 font-semibold">Saturday Madrasa Attendance (Offline)</p>
+  </header>
+
+  <main>
+    <!-- Controls -->
+    <div class="bg-gray-800 p-4 rounded-lg shadow-md mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <select id="month-select" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"></select>
+        <select id="year-select" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"></select>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap justify-center">
+        <button id="export-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2">
+          <i class="fab fa-whatsapp"></i> Export
+        </button>
+        <button id="add-month-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2">
+          <i class="fas fa-plus-circle"></i> Add Next Month
+        </button>
+        <button id="bulk-add-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2">
+          <i class="fas fa-users"></i> Bulk Add
+        </button>
+        <button id="add-student-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2">
+          <i class="fas fa-user-plus"></i> Add Student
+        </button>
+      </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="bg-gray-800 rounded-lg shadow-md">
+      <div class="table-container">
+        <table class="min-w-full divide-y divide-gray-700">
+          <thead class="bg-gray-700" id="attendance-head"></thead>
+          <tbody class="bg-gray-800 divide-y divide-gray-700" id="attendance-body"></tbody>
+        </table>
+      </div>
+      <div id="no-students-msg" class="text-center p-8 text-gray-400 hidden">
+        <p>No students have been added yet. Click "Add Student" to begin.</p>
+      </div>
+    </div>
+
+    <!-- Data Management -->
+    <div class="bg-gray-800 p-4 rounded-lg shadow-md mt-6 text-center">
+      <h3 class="text-lg font-semibold text-gray-200 mb-2">Manage Your Data</h3>
+      <p class="text-sm text-gray-400 mb-4">Save a backup file to your device or load data from a backup.</p>
+      <div class="flex items-center gap-4 justify-center">
+        <button id="save-data-btn" class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2">
+          <i class="fas fa-download"></i> Save to File
+        </button>
+        <label class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2 cursor-pointer">
+          <i class="fas fa-upload"></i> Load from File
+          <input type="file" id="load-data-input" class="hidden" accept=".json">
+        </label>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Modals -->
+<div id="export-modal" class="modal"><div class="bg-gray-800 shadow-lg rounded-lg p-6 w-full max-w-lg flex flex-col max-h-[90vh]"><h2 class="text-2xl font-bold mb-4 text-white">Export for WhatsApp</h2><div class="grid grid-cols-2 gap-4 mb-4"><div class="flex flex-col"><label for="export-date-select" class="mb-1 text-sm font-medium text-gray-400">Class Date</label><select id="export-date-select" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5"></select></div><div class="flex flex-col"><label class="mb-1 text-sm font-medium text-gray-400">Options</label><div class="bg-gray-700 border border-gray-600 rounded-lg p-2.5 flex items-center"><input id="export-present" type="radio" value="present" name="export-filter" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 focus:ring-purple-500" checked><label for="export-present" class="ml-2 text-sm font-medium text-gray-300">Present Only</label><input id="export-all" type="radio" value="all" name="export-filter" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 focus:ring-purple-500 ml-4"><label for="export-all" class="ml-2 text-sm font-medium text-gray-300">All Students</label></div></div></div><textarea id="export-output" readonly rows="10" class="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg text-gray-300 font-mono text-sm flex-grow"></textarea><div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-700"><button class="modal-cancel bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">Close</button><button id="copy-export-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2"><i class="fas fa-copy"></i> Copy to Clipboard</button></div></div></div>
+<div id="add-student-modal" class="modal"><div class="bg-gray-800 shadow-lg rounded-lg p-6 w-full max-w-md max-h-[90vh] flex flex-col"><h2 class="text-2xl font-bold mb-4 text-white">Add New Student</h2><div class="overflow-y-auto"><input type="text" id="new-student-name" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg mb-2 text-white" placeholder="Student's full name"><input type="text" id="new-parent-name" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg mb-2 text-white" placeholder="Parent's name"><input type="tel" id="new-parent-phone" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg mb-2 text-white" placeholder="Parent's phone"><input type="email" id="new-parent-email" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg mb-4 text-white" placeholder="Parent's email"></div><div class="flex justify-end gap-3 mt-auto pt-4"><button class="modal-cancel bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">Cancel</button><button id="confirm-add-student" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Add</button></div></div></div>
+<div id="edit-student-modal" class="modal"><div class="bg-gray-800 shadow-lg rounded-lg p-6 w-full max-w-md max-h-[90vh] flex flex-col"><h2 class="text-2xl font-bold mb-4 text-white">Edit Student Information</h2><div class="overflow-y-auto"><input type="text" id="edit-student-name" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg mb-2 text-white" placeholder="Student's full name"><input type="text" id="edit-parent-name" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg mb-2 text-white" placeholder="Parent's name"><input type="tel" id="edit-parent-phone" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg mb-2 text-white" placeholder="Parent's phone"><input type="email" id="edit-parent-email" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg mb-4 text-white" placeholder="Parent's email"></div><input type="hidden" id="edit-student-id"><div class="flex justify-end gap-3 mt-auto pt-4"><button class="modal-cancel bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">Cancel</button><button id="confirm-edit-student" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Save Changes</button></div></div></div>
+<div id="notes-modal" class="modal"><div class="bg-gray-800 shadow-lg rounded-lg p-6 w-full max-w-md max-h-[90vh] flex flex-col"><h2 class="text-2xl font-bold mb-4 text-white flex-shrink-0">Student Notes</h2><p id="notes-student-name" class="mb-2 text-green-400 flex-shrink-0"></p><textarea id="student-notes-text" rows="6" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg mb-4 text-white flex-grow"></textarea><input type="hidden" id="notes-student-id"><div class="flex justify-end gap-3 mt-auto pt-4 flex-shrink-0"><button class="modal-cancel bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">Close</button><button id="confirm-save-notes" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Save Notes</button></div></div></div>
+<div id="contact-info-modal" class="modal"><div class="bg-gray-800 shadow-lg rounded-lg p-6 w-full max-w-md max-h-[90vh] flex flex-col"><h2 class="text-2xl font-bold mb-4 text-white">Contact Information</h2><div class="overflow-y-auto"><h3 id="contact-student-name" class="text-xl text-green-400 mb-4"></h3><div><p class="text-sm text-gray-400">Parent Name</p><p id="contact-parent-name" class="text-lg text-white mb-3"></p></div><div><p class="text-sm text-gray-400">Parent Phone</p><p id="contact-parent-phone" class="text-lg text-white mb-3"></p></div><div><p class="text-sm text-gray-400">Parent Email</p><p id="contact-parent-email" class="text-lg text-white mb-3"></p></div></div><div class="flex justify-end gap-3 mt-auto pt-4"><button class="modal-cancel bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">Close</button></div></div></div>
+<div id="bulk-add-modal" class="modal"><div class="bg-gray-800 shadow-lg rounded-lg p-6 w-full max-w-3xl flex flex-col max-h-[90vh]"><h2 class="text-2xl font-bold mb-4 text-white flex-shrink-0">Bulk Add Students</h2><div id="bulk-student-forms-container" class="space-y-4 flex-grow overflow-y-auto p-1 pr-4"></div><div class="mt-4 pt-4 border-t border-gray-700 flex justify-between items-center flex-shrink-0"><button id="add-student-form-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2"><i class="fas fa-plus"></i> Add Another</button><div class="flex justify-end gap-3"><button class="modal-cancel bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">Cancel</button><button id="confirm-bulk-add" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg">Add Students</button></div></div></div></div>
+<div id="confirm-modal" class="modal"><div class="bg-gray-800 shadow-lg rounded-lg p-6 w-full max-w-md"><h2 class="text-2xl font-bold mb-4 text-white">Are you sure?</h2><p id="confirm-modal-text" class="mb-6 text-gray-300"></p><div class="flex justify-end gap-3"><button id="confirm-modal-cancel" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">Cancel</button><button id="confirm-modal-confirm" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Confirm</button></div></div></div>
+
+<script type="module">
+  const DB_KEY = 'masjidAsSiddiqAttendanceApp';
+
+  // --- App State ---
+  let students = [];
+  let attendance = {};
+  let currentYear = new Date().getFullYear();
+  let currentMonth = new Date().getMonth();
+  let availableMonths = [];
+
+  // --- UI Elements ---
+  const monthSelect = document.getElementById('month-select');
+  const yearSelect = document.getElementById('year-select');
+  const attendanceHead = document.getElementById('attendance-head');
+  const attendanceBody = document.getElementById('attendance-body');
+  const noStudentsMsg = document.getElementById('no-students-msg');
+
+  // --- Modals ---
+  const addStudentModal = document.getElementById('add-student-modal');
+  const editStudentModal = document.getElementById('edit-student-modal');
+  const notesModal = document.getElementById('notes-modal');
+  const contactInfoModal = document.getElementById('contact-info-modal');
+  const bulkAddModal = document.getElementById('bulk-add-modal');
+  const confirmModal = document.getElementById('confirm-modal');
+  const bulkStudentFormsContainer = document.getElementById('bulk-student-forms-container');
+  const exportModal = document.getElementById('export-modal');
+
+  // --- Data Management ---
+  function loadData() {
+    const data = localStorage.getItem(DB_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      students = parsed.students || [];
+      attendance = parsed.attendance || {};
+      availableMonths = parsed.availableMonths || [];
+    }
+
+    if (availableMonths.length === 0) {
+      availableMonths = [{ year: 2025, month: 8 }]; // Default to Sep 2025
+      currentYear = 2025;
+      currentMonth = 8;
+    } else {
+      const lastMonth = availableMonths[availableMonths.length - 1];
+      currentYear = lastMonth.year;
+      currentMonth = lastMonth.month;
+    }
+  }
+
+  function saveData() {
+    const data = { students, attendance, availableMonths };
+    localStorage.setItem(DB_KEY, JSON.stringify(data));
+  }
+
+  // --- Date Logic ---
+  function getSaturdaysInMonth(year, month) { const dates = []; const d = new Date(Date.UTC(year, month, 1)); while (d.getUTCMonth() === month) { if (d.getUTCDay() === 6) dates.push(new Date(d)); d.setUTCDate(d.getUTCDate() + 1); } return dates; }
+
+  // --- Render Functions ---
+  function renderTable() {
+    students.sort((a,b) => a.name.localeCompare(b.name));
+    const saturdays = getSaturdaysInMonth(currentYear, currentMonth);
+    attendanceHead.innerHTML = `<tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider sticky left-0 bg-gray-700 z-10">Student</th>${saturdays.map(d => `<th class="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">${d.toLocaleDateString('en-US',{month:'short',day:'numeric', timeZone:'UTC'})}</th>`).join('')}<th class="px-6 py-3"></th></tr>`;
+
+    noStudentsMsg.classList.toggle('hidden', students.length === 0);
+    attendanceBody.innerHTML = students.map(student => {
+      const monthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+      const monthlyAttendance = attendance[student.id]?.[monthKey] || {};
+      const attendanceCells = saturdays.map(day => {
+        const dateString = day.toISOString().split('T')[0];
+        const status = monthlyAttendance[dateString] || '';
+        const statusClass = { P: 'status-present', E: 'status-excused', U: 'status-unexcused' }[status] || 'status-none';
+        return `<td class="px-2 py-2 whitespace-nowrap"><select class="attendance-select ${statusClass}" data-student-id="${student.id}" data-date="${dateString}"><option value="" ${status===''?'selected':''}>-</option><option value="P" ${status==='P'?'selected':''}>Present</option><option value="E" ${status==='E'?'selected':''}>Excused</option><option value="U" ${status==='U'?'selected':''}>Unexcused</option></select></td>`;
+      }).join('');
+
+      return `
+                    <tr id="student-${student.id}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white sticky left-0 bg-gray-800 z-10">
+                            <div class="flex items-center gap-1">
+                                <span>${student.name}</span>
+                                <div class="flex items-center">
+                                    <button class="contact-btn text-teal-400 hover:text-teal-300 p-2 rounded-full hover:bg-gray-700" title="View Contact Info" data-student-id="${student.id}"><i class="fas fa-address-book"></i></button>
+                                    <button class="edit-student-btn text-blue-400 hover:text-blue-300 p-2 rounded-full hover:bg-gray-700" title="Edit Student" data-student-id="${student.id}"><i class="fas fa-pencil-alt"></i></button>
+                                    <button class="notes-btn text-green-400 hover:text-green-300 p-2 rounded-full hover:bg-gray-700" title="Student Notes" data-student-id="${student.id}"><i class="fas fa-sticky-note"></i></button>
+                                </div>
+                            </div>
+                        </td>
+                        ${attendanceCells}
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div class="flex items-center gap-2 justify-end">
+                                <button class="clear-month-btn text-yellow-400 hover:text-yellow-300 p-2 rounded-full hover:bg-gray-700" title="Clear this month's attendance" data-student-id="${student.id}" data-student-name="${student.name}"><i class="fas fa-eraser"></i></button>
+                                <button class="delete-student-btn text-red-500 hover:text-red-400 p-2 rounded-full hover:bg-gray-700" title="Delete student permanently" data-student-id="${student.id}" data-student-name="${student.name}"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </td>
+                    </tr>`;
+    }).join('');
+  }
+
+  function generateExportText() {
+    const dateSelect = document.getElementById('export-date-select');
+    if (!dateSelect.value) { document.getElementById('export-output').value = 'Please select a date.'; return; }
+    const selectedDate = new Date(dateSelect.value);
+    const dateString = selectedDate.toISOString().split('T')[0];
+    const formattedDate = `${selectedDate.getUTCMonth() + 1}/${selectedDate.getUTCDate()}/${String(selectedDate.getUTCFullYear()).slice(-2)}`;
+    const filter = document.querySelector('input[name="export-filter"]:checked').value;
+    const monthKey = `${selectedDate.getUTCFullYear()}-${String(selectedDate.getUTCMonth() + 1).padStart(2, '0')}`;
+    let studentList = [];
+    students.forEach(student => {
+      const studentAttendance = attendance[student.id]?.[monthKey]?.[dateString];
+      const isEffectivelyPresent = studentAttendance === 'P' || studentAttendance === undefined || studentAttendance === '';
+      if (filter === 'present') { if (isEffectivelyPresent) studentList.push(student.name); }
+      else {
+        let statusText = isEffectivelyPresent ? '[Present]' : (studentAttendance === 'E' ? '[Excused]' : (studentAttendance === 'U' ? '[Unexcused]' : '[Absent]'));
+        studentList.push(`${student.name} ${statusText}`);
+      }
+    });
+    document.getElementById('export-output').value = `Date: ${formattedDate}\nStudents:\n${studentList.join('\n')}`;
+  }
+
+  function createStudentFormElement() {
+    const formEntry = document.createElement('div');
+    formEntry.className = 'student-form-entry bg-gray-700 p-4 rounded-lg relative border border-gray-600';
+    formEntry.innerHTML = `<button class="remove-student-form-btn absolute top-2 right-3 text-gray-400 hover:text-white text-2xl leading-none">&times;</button><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><input type="text" class="bulk-student-name w-full p-2 bg-gray-600 border border-gray-500 rounded-lg text-white" placeholder="Student Name*"><input type="text" class="bulk-parent-name w-full p-2 bg-gray-600 border border-gray-500 rounded-lg text-white" placeholder="Parent Name"><input type="tel" class="bulk-parent-phone w-full p-2 bg-gray-600 border border-gray-500 rounded-lg text-white" placeholder="Parent Phone"><input type="email" class="bulk-parent-email w-full p-2 bg-gray-600 border border-gray-500 rounded-lg text-white" placeholder="Parent Email"></div>`;
+    return formEntry;
+  }
+
+  function setupEventListeners() {
+    document.addEventListener('keydown', (e) => { if (e.key === "Escape") document.querySelectorAll('.modal.show').forEach(modal => modal.classList.remove('show')); });
+    document.getElementById('export-btn').addEventListener('click', () => {
+      const dateSelect = document.getElementById('export-date-select');
+      dateSelect.innerHTML = '';
+      getSaturdaysInMonth(currentYear, currentMonth).forEach(day => { const option = document.createElement('option'); option.value = day.toISOString(); option.textContent = day.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }); dateSelect.appendChild(option); });
+      generateExportText();
+      exportModal.classList.add('show');
+    });
+    document.getElementById('export-date-select').addEventListener('change', generateExportText);
+    document.querySelectorAll('input[name="export-filter"]').forEach(radio => radio.addEventListener('change', generateExportText));
+    document.getElementById('copy-export-btn').addEventListener('click', () => { document.getElementById('export-output').select(); document.execCommand('copy'); const btn = document.getElementById('copy-export-btn'); btn.innerHTML = '<i class="fas fa-check"></i> Copied!'; setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> Copy to Clipboard'; }, 2000); });
+    document.getElementById('bulk-add-btn').addEventListener('click', () => { bulkStudentFormsContainer.innerHTML = ''; const firstForm = createStudentFormElement(); bulkStudentFormsContainer.appendChild(firstForm); bulkAddModal.classList.add('show'); setTimeout(() => firstForm.querySelector('input').focus(), 100); });
+    document.getElementById('add-student-form-btn').addEventListener('click', () => { const newForm = createStudentFormElement(); bulkStudentFormsContainer.appendChild(newForm); newForm.querySelector('input').focus(); });
+    bulkStudentFormsContainer.addEventListener('click', e => { if (e.target.classList.contains('remove-student-form-btn') && bulkStudentFormsContainer.children.length > 1) e.target.closest('.student-form-entry').remove(); });
+    document.getElementById('confirm-bulk-add').addEventListener('click', () => {
+      bulkStudentFormsContainer.querySelectorAll('.student-form-entry').forEach(form => {
+        const studentName = form.querySelector('.bulk-student-name').value.trim();
+        if (studentName) addStudent({ name: studentName, parentName: form.querySelector('.bulk-parent-name').value.trim(), parentPhone: form.querySelector('.bulk-parent-phone').value.trim(), parentEmail: form.querySelector('.bulk-parent-email').value.trim() });
+      });
+      bulkAddModal.classList.remove('show');
+    });
+    monthSelect.addEventListener('change', e => { currentMonth = parseInt(e.target.value); renderTable(); });
+    yearSelect.addEventListener('change', e => { currentYear = parseInt(e.target.value); const firstMonthForYear = availableMonths.find(m => m.year === currentYear)?.month; if (firstMonthForYear !== undefined) currentMonth = firstMonthForYear; populateMonthAndYearSelectors(); renderTable(); });
+    document.getElementById('add-month-btn').addEventListener('click', () => {
+      const lastMonthEntry = availableMonths[availableMonths.length - 1]; let nextMonth = lastMonthEntry.month + 1; let nextYear = lastMonthEntry.year; if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+      if (!availableMonths.some(m => m.year === nextYear && m.month === nextMonth)) { availableMonths.push({ year: nextYear, month: nextMonth }); availableMonths.sort((a, b) => a.year - b.year || a.month - b.month); saveData(); }
+      currentYear = nextYear; currentMonth = nextMonth; populateMonthAndYearSelectors(); renderTable();
+    });
+    document.getElementById('add-student-btn').addEventListener('click', () => { addStudentModal.classList.add('show'); setTimeout(() => document.getElementById('new-student-name').focus(), 100); });
+    document.getElementById('confirm-add-student').addEventListener('click', () => {
+      const name = document.getElementById('new-student-name').value.trim();
+      if (name) {
+        addStudent({ name, parentName: document.getElementById('new-parent-name').value.trim(), parentPhone: document.getElementById('new-parent-phone').value.trim(), parentEmail: document.getElementById('new-parent-email').value.trim() });
+        ['new-student-name', 'new-parent-name', 'new-parent-phone', 'new-parent-email'].forEach(id => document.getElementById(id).value = '');
+        addStudentModal.classList.remove('show');
+      }
+    });
+    attendanceBody.addEventListener('click', e => {
+      const targetButton = e.target.closest('button');
+      if (!targetButton) return;
+      const studentId = targetButton.dataset.studentId;
+      const student = students.find(s => s.id === studentId);
+      if (!student) return;
+      if (targetButton.classList.contains('edit-student-btn')) { document.getElementById('edit-student-id').value = student.id; document.getElementById('edit-student-name').value = student.name || ''; document.getElementById('edit-parent-name').value = student.parentName || ''; document.getElementById('edit-parent-phone').value = student.parentPhone || ''; document.getElementById('edit-parent-email').value = student.parentEmail || ''; editStudentModal.classList.add('show'); setTimeout(() => document.getElementById('edit-student-name').focus(), 100); }
+      else if (targetButton.classList.contains('notes-btn')) { document.getElementById('notes-student-id').value = student.id; document.getElementById('notes-student-name').textContent = student.name; document.getElementById('student-notes-text').value = student.notes || ''; notesModal.classList.add('show'); setTimeout(() => document.getElementById('student-notes-text').focus(), 100); }
+      else if (targetButton.classList.contains('contact-btn')) { document.getElementById('contact-student-name').textContent = student.name; document.getElementById('contact-parent-name').textContent = student.parentName || 'N/A'; document.getElementById('contact-parent-phone').textContent = student.parentPhone || 'N/A'; document.getElementById('contact-parent-email').textContent = student.parentEmail || 'N/A'; contactInfoModal.classList.add('show'); }
+      else if (targetButton.classList.contains('clear-month-btn')) { showConfirmation(`Clear all attendance for ${student.name} for the current month?`, () => clearMonthlyAttendance(student.id)); }
+      else if (targetButton.classList.contains('delete-student-btn')) { showConfirmation(`Permanently delete ${student.name} and all their records? THIS CANNOT BE UNDONE.`, () => deleteStudent(student.id)); }
+    });
+    document.getElementById('confirm-edit-student').addEventListener('click', () => { const id = document.getElementById('edit-student-id').value; const name = document.getElementById('edit-student-name').value.trim(); if (id && name) { updateStudent(id, { name, parentName: document.getElementById('edit-parent-name').value.trim(), parentPhone: document.getElementById('edit-parent-phone').value.trim(), parentEmail: document.getElementById('edit-parent-email').value.trim() }); editStudentModal.classList.remove('show'); } });
+    document.getElementById('confirm-save-notes').addEventListener('click', () => { const id = document.getElementById('notes-student-id').value; const notes = document.getElementById('student-notes-text').value.trim(); if (id) { updateStudent(id, { notes }); notesModal.classList.remove('show'); } });
+    document.querySelectorAll('.modal-cancel').forEach(btn => btn.addEventListener('click', () => btn.closest('.modal').classList.remove('show')));
+    attendanceBody.addEventListener('change', e => { if (e.target.classList.contains('attendance-select')) { const { studentId, date } = e.target.dataset; const status = e.target.value; e.target.className = `attendance-select ${ { P: 'status-present', E: 'status-excused', U: 'status-unexcused' }[status] || 'status-none' }`; saveAttendance(studentId, date, status); } });
+    document.getElementById('save-data-btn').addEventListener('click', () => {
+      const dataStr = JSON.stringify({ students, attendance, availableMonths }, null, 2);
+      const dataBlob = new Blob([dataStr], {type: "application/json"});
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.download = `madrasa-attendance-backup-${new Date().toISOString().slice(0,10)}.json`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById('load-data-input').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedData = JSON.parse(e.target.result);
+          if (importedData.students && importedData.attendance && importedData.availableMonths) {
+            localStorage.setItem(DB_KEY, JSON.stringify(importedData));
+            alert("Data imported successfully! The page will now reload.");
+            location.reload();
+          } else {
+            alert("Invalid data file. Please select a valid backup file.");
+          }
+        } catch (err) {
+          alert("Error reading file. It might be corrupted.");
+          console.error(err);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = null; // Reset file input
+    });
+  }
+
+  // --- CRUD Logic ---
+  function addStudent(studentData) { students.push({ id: `local_${Date.now()}`, notes: '', ...studentData }); saveData(); renderTable(); }
+  function updateStudent(id, data) { const index = students.findIndex(s => s.id === id); if (index !== -1) { students[index] = { ...students[index], ...data }; saveData(); renderTable(); } }
+  function deleteStudent(id) { students = students.filter(s => s.id !== id); delete attendance[id]; saveData(); renderTable(); }
+  function saveAttendance(studentId, dateString, status) {
+    const date = new Date(dateString);
+    const monthKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    if (!attendance[studentId]) attendance[studentId] = {};
+    if (!attendance[studentId][monthKey]) attendance[studentId][monthKey] = {};
+    attendance[studentId][monthKey][dateString] = status;
+    saveData();
+  }
+  function clearMonthlyAttendance(studentId) {
+    const monthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    if (attendance[studentId] && attendance[studentId][monthKey]) {
+      attendance[studentId][monthKey] = {};
+      saveData();
+      renderTable();
+    }
+  }
+
+  // --- Global Functions ---
+  window.showConfirmation = (text, onConfirm) => {
+    document.getElementById('confirm-modal-text').textContent = text;
+    confirmModal.classList.add('show');
+    const confirmBtn = document.getElementById('confirm-modal-confirm');
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+    const confirmHandler = () => { onConfirm(); cleanup(); };
+    const cancelHandler = () => cleanup();
+    function cleanup() { confirmModal.classList.remove('show'); confirmBtn.removeEventListener('click', confirmHandler); cancelBtn.removeEventListener('click', cancelHandler); }
+    confirmBtn.addEventListener('click', confirmHandler);
+    cancelBtn.addEventListener('click', cancelHandler);
+  };
+
+  window.populateMonthAndYearSelectors = () => {
+    monthSelect.innerHTML = '';
+    yearSelect.innerHTML = '';
+    const uniqueYears = [...new Set(availableMonths.map(m => m.year))].sort((a, b) => a - b);
+    uniqueYears.forEach(year => { const option = document.createElement('option'); option.value = year; option.textContent = year; yearSelect.appendChild(option); });
+    if (uniqueYears.includes(currentYear)) yearSelect.value = currentYear;
+    const monthsForYear = availableMonths.filter(m => m.year === currentYear).map(m => m.month);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    monthsForYear.forEach(monthIndex => { const option = document.createElement('option'); option.value = monthIndex; option.textContent = monthNames[monthIndex]; monthSelect.appendChild(option); });
+    if (monthsForYear.includes(currentMonth)) monthSelect.value = currentMonth;
+  };
+
+  function init() {
+    loadData();
+    populateMonthAndYearSelectors();
+    renderTable();
+    setupEventListeners();
+  }
+
+  init();
+</script>
+</body>
+</html>
+
